@@ -11,20 +11,12 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
 
+    container:
+      image: ghcr.io/niilnikov/android-sdk:34
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Setup Android SDK
-      uses: nttld/setup-action@v3
-      with:
-        android-version: 34
 
     - name: Make Gradle executable
       run: chmod +x ./gradlew
