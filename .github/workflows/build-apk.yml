@@ -10,8 +10,6 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    pool:
-      name: default
 
     steps:
     - name: Checkout code
