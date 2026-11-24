@@ -105,7 +105,7 @@ app/build/outputs/apk/release/app-release.apk
 | "Permission denied" | Grant Storage permission in settings |
 | "Port already in use" | `pkill -f wintune_android.py` |
 | "Downloads not working" | Check `ffmpeg` and `yt-dlp` installed: `which ffmpeg` |
-| "App crashes on start" | Check logs: `adb logcat | grep wintune` |
+| "App crashes on start" | Check logs: `adb logcat \| grep wintune` |
 
 ---
 
