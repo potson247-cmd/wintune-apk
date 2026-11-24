@@ -41,15 +41,6 @@
             android:name=".DownloadService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback|dataSync" />
-
-        <!-- Broadcast receiver for Termux events -->
-        <receiver android:name=".TermuxReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.termux.app.runscript" />
-                <action android:name="wintune.server.status" />
-            </intent-filter>
-        </receiver>
     </application>
 
 </manifest>

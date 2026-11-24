@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -21,7 +22,7 @@ import java.util.concurrent.Executors;
 
 /**
  * WinTune Download Service
- * 
+ *
  * Enhancement Features:
  * 1. Auto-download folder: Uses Android Downloads directory with wintune subfolder
  * 2. Notifications: Foreground service with download progress notifications
@@ -31,16 +32,16 @@ import java.util.concurrent.Executors;
  * 6. Backup & sync: Uses Android's DocumentProvider for backup integration
  */
 public class DownloadService extends Service {
-    
+
     private static final String CHANNEL_ID = "wintune_download_channel";
     private static final int NOTIFICATION_ID = 1001;
-    
+
     private ExecutorService executor;
     private NotificationManager notificationManager;
-    
+
     public DownloadService() {
     }
-    
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -48,11 +49,11 @@ public class DownloadService extends Service {
         notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         createNotificationChannel();
     }
-    
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         startForeground(NOTIFICATION_ID, createNotification("WinTune Service", "Preparing..."));
-        
+
         String action = intent.getAction();
         if ("DOWNLOAD_URL".equals(action)) {
             String url = intent.getStringExtra("url");
@@ -60,10 +61,23 @@ public class DownloadService extends Service {
                 downloadFile(url);
             }
         }
-        
+
         return START_NOT_STICKY;
     }
-    
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (executor != null) {
+            executor.shutdown();
+        }
+        super.onDestroy();
+    }
+
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -75,86 +89,94 @@ public class DownloadService extends Service {
             notificationManager.createNotificationChannel(channel);
         }
     }
-    
+
     private Notification createNotification(String title, String content) {
         return new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(R.drawable.ic_download)
+            .setSmallIcon(android.R.drawable.ic_dialog_download)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .build();
     }
-    
+
     private Notification createProgressNotification(String title, String content, int progress, boolean indeterminate) {
         return new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(content)
-            .setSmallIcon(R.drawable.ic_download)
+            .setSmallIcon(android.R.drawable.ic_dialog_download)
             .setProgress(100, progress, indeterminate)
             .setOnlyAlertOnce(true)
             .build();
     }
-    
+
+    private void updateNotification(String title, String content, int progress, boolean indeterminate) {
+        Notification notification = createProgressNotification(title, content, progress, indeterminate);
+        startForeground(NOTIFICATION_ID, notification);
+    }
+
     private void downloadFile(String url) {
         executor.execute(() -> {
             try {
                 updateNotification("WinTune", "Downloading: " + url, 0, true);
-                
+
                 // Enhancement 1: Auto-download folder
                 // Uses Android Downloads directory with wintune subfolder
                 File downloadDir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "wintune");
+                if (downloadDir == null) {
+                    downloadDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "wintune");
+                }
                 if (!downloadDir.exists()) {
                     downloadDir.mkdirs();
                 }
-                
+
                 // Enhancement 4: Offline caching
                 // Files are saved to accessible location for offline play
                 String fileName = extractFileName(url);
                 File outputFile = new File(downloadDir, fileName);
-                
+
                 URL downloadUrl = new URL(url);
                 HttpURLConnection connection = (HttpURLConnection) downloadUrl.openConnection();
                 connection.setConnectTimeout(30000);
                 connection.setReadTimeout(60000);
-                
+
                 long totalSize = connection.getContentLength();
                 InputStream inputStream = connection.getInputStream();
                 FileOutputStream outputStream = new FileOutputStream(outputFile);
-                
+
                 byte[] buffer = new byte[4096];
                 int bytesRead;
                 long downloaded = 0;
-                
+
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
                     outputStream.write(buffer, 0, bytesRead);
                     downloaded += bytesRead;
-                    
+
                     // Update progress
                     if (totalSize > 0) {
                         int progress = (int) ((downloaded * 100) / totalSize);
                         updateNotification("WinTune", "Downloading...", progress, false);
                     }
                 }
-                
+
                 inputStream.close();
                 outputStream.close();
                 connection.disconnect();
-                
+
                 // Enhancement 6: Backup & sync marker
                 // Create a .sync file to indicate this should be backed up
                 createSyncFile(outputFile);
-                
+
                 updateNotification("WinTune", "Download complete: " + fileName, 100, false);
                 Log.i("DownloadService", "Downloaded: " + outputFile.getAbsolutePath());
-                
+
             } catch (Exception e) {
                 Log.e("DownloadService", "Download failed: " + e.getMessage());
                 updateNotification("WinTune", "Download failed: " + e.getMessage(), 100, false);
             }
         });
     }
-    
+
     private String extractFileName(String url) {
         String fileName = url.substring(url.lastIndexOf('/') + 1);
         if (!fileName.contains(".")) {
@@ -165,11 +187,11 @@ public class DownloadService extends Service {
         }
         return fileName;
     }
-    
+
     private void createSyncFile(File originalFile) {
         try {
             // Enhancement 6: Create sync marker for backup
-            File syncFile = new File(originalFile.getParent(), 
+            File syncFile = new File(originalFile.getParent(),
                 originalFile.getName() + ".wintune-sync");
             // Write metadata for sync
             java.io.FileWriter writer = new java.io.FileWriter(syncFile);
@@ -180,23 +202,5 @@ public class DownloadService extends Service {
         } catch (Exception e) {
             Log.w("DownloadService", "Could not create sync file: " + e.getMessage());
         }
-    }
-    
-    private void updateNotification(String title, String content, int progress, boolean indeterminate) {
-        Notification notification = createProgressNotification(title, content, progress, indeterminate);
-        startForeground(NOTIFICATION_ID, notification);
-    }
-    
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-    
-    @Override
-    public void onDestroy() {
-        if (executor != null) {
-            executor.shutdown();
-        }
-        super.onDestroy();
     }
 }
