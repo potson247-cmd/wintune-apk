@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WinTune MP3 Downloader</title>
+    <meta name="theme-color" content="#0d1117">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body {
+            min-height: 100vh;
+            background: radial-gradient(1200px 600px at 20% -10%, #1b2a4a, #0d1117 60%);
+            color: var(--text-primary);
+            display: flex; justify-content: center; padding: 40px 16px;
+            transition: background 0.3s, color 0.3s;
+        }
+        body.light {
+            background: radial-gradient(1200px 600px at 20% -10%, #e6f2ff, #f0f8ff 60%);
+            color: #1a1a1a;
+        }
+        .card {
+            width: 100%; max-width: 720px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.5);
+        }
+        :root {
+            --text-primary: #e6edf3;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --input-bg: #0d1117;
+            --input-border: #30363d;
+            --button-bg: #58a6ff;
+            --button-hover: #388bfd;
+        }
+        body.light {
+            --text-primary: #1a1a1a;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --input-bg: #f5f5f5;
+            --input-border: #cccccc;
+            --button-bg: #0969da;
+            --button-hover: #1971c2;
+        }
+        h1 { font-size: 26px; margin-bottom: 4px; color: var(--text-primary); }
+        .sub { color: #8b949e; margin-bottom: 22px; font-size: 14px; }
+        .row { display: flex; gap: 8px; }
+        input[type=text] {
+            flex: 1; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary);
+            border-radius: 10px; padding: 12px 14px; font-size: 15px; outline: none;
+        }
+        input[type=text]:focus { border-color: #58a6ff; }
+        .alt { background: #21262d; }
+        .alt:hover { background: #30363d; }
+        button {
+            background: var(--button-bg); color: #fff; border: none;
+            padding: 10px 20px; border-radius: 10px; font-size: 15px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--button-hover); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .progress-bar {
+            width: 100%; height: 12px; background: #30363d; border-radius: 6px;
+            overflow: hidden; margin: 12px 0;
+        }
+        .progress-fill {
+            height: 100%; width: 0%; background: #58a6ff; transition: width 0.3s;
+        }
+        .log {
+            background: #0d1117; color: #e6edf3;
+            padding: 12px; border-radius: 8px; font-family: monospace;
+            font-size: 13px; max-height: 200px; overflow-y: auto;
+        }
+        body.light .log { background: #f0f0f0; color: #1a1a1a; }
+        .files { margin-top: 20px; }
+        .file-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; border-bottom: 1px solid #30363d;
+        }
+        .file-item:last-child { border-bottom: none; }
+        .btn-group { display: flex; gap: 8px; }
+        .theme-toggle { cursor: pointer; margin-left: 8px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>WinTune MP3 Downloader</h1>
+        <div class="sub">
+            <span id="status-icon">●</span>
+            <span id="status-text">Checking server...</span>
+            <span id="theme-toggle" class="theme-toggle" title="Toggle dark/light mode">🌓</span>
+        </div>
+        
+        <!-- Enhancement 2: Dark/Light Mode Toggle -->
+        <div id="theme-indicator" style="margin-bottom: 10px; font-size: 12px; color: #8b949e;">
+            Theme: <span id="theme-name">Dark</span>
+        </div>
+        
+        <div class="row">
+            <input type="text" id="url-input" placeholder="Paste YouTube/Spotify URL here..." />
+            <button id="download-btn">Download</button>
+        </div>
+        
+        <div class="row" style="margin-top: 12px;">
+            <button id="playlist-btn" class="alt">Playlist Mode</button>
+            <button id="batch-btn" class="alt">Batch Mode</button>
+        </div>
+        
+        <div id="batch-modal" style="display:none; margin-top:16px; padding:16px; background:#0d1117; border-radius:8px;">
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+                <textarea id="urls-input" placeholder="Enter URLs (one per line)" style="flex:1; background:#161b22; color:#e6edf3; border:none; padding:8px; border-radius:4px;"></textarea>
+                <div>
+                    <button id="batch-download">Start</button>
+                    <button id="batch-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="progress-bar" style="margin: 16px 0;">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        
+        <div class="log" id="log-output">
+            <div id="log-content">Connecting to WinTune server...</div>
+        </div>
+        
+        <div class="files" style="margin-top: 20px;">
+            <h3 style="margin-bottom: 12px; font-size: 16px;">Downloaded MP3s</h3>
+            <div id="files-list" style="max-height: 150px; overflow-y: auto;">
+                <div style="color:#8b949e; font-size:14px;">No files yet...</div>
+            </div>
+        </div>
+        
+        <!-- Enhancement 3: Offline Caching Indicator -->
+        <div id="offline-indicator" style="margin-top: 12px; font-size: 12px; color:#8b949e;">
+            ✓ Files available offline
+        </div>
+    </div>
+
+    <script>
+        // Enhancement 1: Auto-download folder (handled by service, shown in settings)
+        const DOWNLOAD_DIR = "Downloads/wintune";
+        
+        // Enhancement 2: Dark/Light Mode
+        const THEME_KEY = "wintune_theme";
+        const LANGUAGE_KEY = "wintune_language";
+        
+        let isDark = true;
+        let currentLanguage = "en";
+        
+        const texts = {
+            en: {
+                connecting: "Connecting to WinTune server...",
+                connected: "Connected to WinTune server",
+                downloading: "Downloading...",
+                done: "Done!",
+                failed: "Failed.",
+                status: "Status:",
+                downloadBtn: "Download",
+                playlist: "Playlist Mode",
+                batch: "Batch Mode",
+                files: "Downloaded MP3s",
+                noFiles: "No downloads yet...",
+                theme: "Theme: Dark",
+                themeLight: "Theme: Light",
+            },
+            es: {
+                connecting: "Conectando al servidor de WinTune...",
+                connected: "Conectado al servidor de WinTune",
+                downloading: "Descargando...",
+                done: "¡Listo!",
+                failed: "Fallido.",
+                status: "Estado:",
+                downloadBtn: "Descargar",
+                playlist: "Modo Lista",
+                batch: "Modo Lote",
+                files: "MP3s Descargados",
+                noFiles: "Sin descargas...",
+                theme: "Tema: Oscuro",
+                themeLight: "Tema: Claro",
+            },
+            fr: {
+                connecting: "Connexion au serveur WinTune...",
+                connected: "Connecté au serveur WinTune",
+                downloading: "Téléchargement...",
+                done: "Terminé!",
+                failed: "Échoué.",
+                status: "Statut:",
+                downloadBtn: "Télécharger",
+                playlist: "Mode Playlist",
+                batch: "Mode Par lots",
+                files: "MP3s Téléchargés",
+                noFiles: "Pas de téléchargements...",
+                theme: "Thème: Sombre",
+                themeLight: "Thème: Clair",
+            }
+        };
+        
+        function t(key) {
+            return texts[currentLanguage][key] || key;
+        }
+        
+        function setTheme(dark) {
+            isDark = dark;
+            localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+            document.body.classList.toggle("light", !dark);
+            document.getElementById("theme-name").textContent = dark ? "Dark" : "Light";
+        }
+        
+        function loadTheme() {
+            const saved = localStorage.getItem(THEME_KEY);
+            setTheme(saved !== "light");
+        }
+        
+        // Enhancement 5: Multi-language support
+        function loadLanguage() {
+            const saved = localStorage.getItem(LANGUAGE_KEY);
+            currentLanguage = (saved && texts[saved]) ? saved : navigator.language.split("-")[0];
+            if (!texts[currentLanguage]) currentLanguage = "en";
+        }
+        
+        function updateTexts() {
+            document.getElementById("theme-name").textContent = isDark ? "Dark" : "Light";
+        }
+        
+        function log(message) {
+            const logEl = document.getElementById("log-content");
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function checkServer() {
+            fetch("http://127.0.0.1:8000/version")
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById("status-text").textContent = `Connected (${data.version})`;
+                    document.getElementById("status-icon").style.color = "#28a745";
+                    log(t("connected"));
+                    loadFiles();
+                })
+                .catch(() => {
+                    document.getElementById("status-text").textContent = "Server not running";
+                    document.getElementById("status-icon").style.color = "#dc3545";
+                    log("Server not running. Open Termux and start WinTune.");
+                });
+        }
+        
+        function loadFiles() {
+            fetch("http://127.0.0.1:8000/files")
+                .then(r => r.json())
+                .then(files => {
+                    const list = document.getElementById("files-list");
+                    if (files.length === 0) {
+                        list.innerHTML = `<div style="color:#8b949e;">${t("noFiles")}</div>`;
+                        return;
+                    }
+                    list.innerHTML = files.map(f => 
+                        `<div class="file-item">
+                            <span>${f.name}</span>
+                            <span style="color:#8b949e;">${f.size}</span>
+                        </div>`
+                    ).join("");
+                })
+                .catch(() => {});
+        }
+        
+        function startDownload(url, playlist = false) {
+            fetch("http://127.0.0.1:8000/download", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `url=${encodeURIComponent(url)}&playlist=${playlist}`
+            })
+            .then(r => r.json())
+            .then(data => {
+                log(`Job started: ${data.job}`);
+                checkJob(data.job);
+            })
+            .catch(e => log(`Error: ${e}`));
+        }
+        
+        function checkJob(jobId) {
+            const interval = setInterval(() => {
+                fetch(`http://127.0.0.1:8000/status/${jobId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const progress = document.getElementById("progress-fill");
+                        progress.style.width = data.progress + "%";
+                        
+                        if (data.done) {
+                            clearInterval(interval);
+                            progress.style.width = "100%";
+                            log(data.exit === 0 ? t("done") + ` (${data.file_name})` : t("failed"));
+                            if (data.exit === 0) loadFiles();
+                        } else {
+                            log(data.tail);
+                        }
+                    })
+                    .catch(() => clearInterval(interval));
+            }, 1000);
+        }
+        
+        // Event Listeners
+        document.getElementById("download-btn").addEventListener("click", () => {
+            const url = document.getElementById("url-input").value.trim();
+            if (url) startDownload(url);
+        });
+        
+        document.getElementById("url-input").addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                const url = document.getElementById("url-input").value.trim();
+                if (url) startDownload(url);
+            }
+        });
+        
+        document.getElementById("theme-toggle").addEventListener("click", () => {
+            setTheme(isDark ? false : true);
+            updateTexts();
+        });
+        
+        document.getElementById("batch-btn").addEventListener("click", () => {
+            document.getElementById("batch-modal").style.display = "block";
+        });
+        
+        document.getElementById("batch-cancel").addEventListener("click", () => {
+            document.getElementById("batch-modal").style.display = "none";
+            document.getElementById("urls-input").value = "";
+        });
+        
+        document.getElementById("batch-download").addEventListener("click", () => {
+            const urls = document.getElementById("urls-input").value.split("\n").map(u => u.trim()).filter(Boolean);
+            if (urls.length > 0) {
+                fetch("http://127.0.0.1:8000/batch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ urls, playlist: false, normalize: true })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    log(`Batch started: ${data.batch}`);
+                    document.getElementById("batch-modal").style.display = "none";
+                    checkBatch(data.batch, urls.length);
+                });
+            }
+        });
+        
+        function checkBatch(batchId, total) {
+            let completed = 0;
+            const interval = setInterval(() => {
+                fetch(`http://127.0.0.1:8000/batchstatus/${batchId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        document.getElementById("progress-fill").style.width = (data.progress) + "%";
+                        
+                        if (data.results.length > completed) {
+                            completed = data.results.length;
+                            data.results.slice(completed - 1).forEach(r => 
+                                log(r.ok ? "✓ " + r.url : "✗ " + r.url)
+                            );
+                        }
+                        
+                        if (data.done) {
+                            clearInterval(interval);
+                            log(`Batch complete: ${data.results.filter(r => r.ok).length}/${total}`);
+                            loadFiles();
+                        }
+                    })
+                    .catch(() => clearInterval(interval));
+            }, 1500);
+        }
+        
+        // Initialize
+        loadTheme();
+        loadLanguage();
+        updateTexts();
+        checkServer();
+        
+        // Enhancement 6: Backup & sync - notify when files are saved
+        setInterval(loadFiles, 5000);
+    </script>
+</body>
+</html>

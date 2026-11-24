@@ -1,0 +1,75 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdk 34
+    
+    defaultConfig {
+        applicationId "com.wintune"
+        minSdk 21
+        targetSdk 34
+        versionCode 2
+        versionName "1.0"
+        
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Enable Java 8 features
+        compileOptions {
+            sourceCompatibility JavaVersion.VERSION_1_8
+            targetCompatibility JavaVersion.VERSION_1_8
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
+        }
+        debug {
+            debuggable true
+        }
+    }
+    
+    // Enable cleartext traffic for localhost
+    packagingOptions {
+        doNotStrip "*/arm64-v8a/*"
+        doNotStrip "*/armeabi-v7a/*"
+    }
+    
+    // Split APKs by ABI for smaller downloads
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk false
+            include "armeabi-v7a", "arm64-v8a", "x86_64"
+        }
+    }
+    
+    // Configure flavors for different versions
+    flavorDimensions "version"
+    productFlavors {
+        full {
+            dimension "version"
+            versionNameSuffix "-full"
+        }
+        lite {
+            dimension "version"
+            versionNameSuffix "-lite"
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'com.google.android.material:material:1.10.0'
+    
+    // For notifications
+    implementation 'androidx.core:core:1.12.0'
+    
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+}

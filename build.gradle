@@ -1,0 +1,23 @@
+// Top-level build file where you configure common build options.
+
+buildscript {
+    ext {
+        compileSdkVersion = 34
+        minSdkVersion = 21
+        targetSdkVersion = 34
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.2'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
