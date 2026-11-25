@@ -1,85 +1,63 @@
 @echo off
-REM WinTune Android APK Build Script for Windows
-REM Requires Android Studio or Android SDK to be installed
+REM WinTune APK Build Script for Windows
+REM Requires: Java 17, Android SDK (or use WSL)
 
-echo ============================================
-echo WinTune Android APK Builder
-echo ============================================
+echo 🏗️  Building WinTune APK...
 echo.
 
-REM Check for Android Studio
-if not defined ANDROID_HOME (
-    echo Checking for Android Studio...
-    for %%a in ("C:\Program Files\Android\Android Studio\bin\studio64.exe") do (
-        set "ANDROID_HOME=%%~dapa\..\..\..\.."
-    )
-)
-
-REM Check for SDK in common locations
-if not exist "%ANDROID_HOME%\build-tools" (
-    for %%d in (
-        "%LOCALAPPDATA%\Android\Sdk"
-        "%USERPROFILE%\AppData\Local\Android\Sdk"
-        "C:\Android\Sdk"
-    ) do (
-        if exist "%%d\build-tools" (
-            set "ANDROID_HOME=%%d"
-        )
-    )
-)
-
-if not defined ANDROID_HOME (
-    echo ERROR: Android SDK not found!
-    echo.
-    echo Please install Android Studio or set ANDROID_HOME environment variable
-    echo Download: https://developer.android.com/studio
-    echo.
-    pause
+REM Check if Java is installed
+where java >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo ❌ Java not found!
+    echo Install Java 17 from: https://adoptium.net/
     exit /b 1
 )
 
-echo Android SDK found at: %ANDROID_HOME%
-echo.
-
-REM Set environment for Gradle
-set ANDROID_SDK_ROOT=%ANDROID_HOME%
-set JAVA_HOME=%JAVA_HOME%
-
-REM Check Java
-echo Checking Java...
-java -version 2>nul
-if errorlevel 1 (
-    echo ERROR: Java not found!
-    echo Please install JDK 11 or add to PATH
-    pause
+REM Check Java version
+java -version 2>&1 | findstr "17" >nul
+if %ERRORLEVEL% neq 0 (
+    echo ❌ Java 17 required! Current version:
+    java -version
     exit /b 1
 )
 
-echo.
-echo Building APK...
-echo ============================================
+REM Check if Android SDK is installed
+if "%ANDROID_HOME%"=="" (
+    if "%ANDROID_SDK_ROOT%"=="" (
+        echo ⚠️  Warning: ANDROID_HOME not set
+        echo    The build may fail if sdkmanager is not in PATH
+    )
+)
 
+REM Navigate to project directory
 cd /d "%~dp0"
 
-REM Build the APK
-echo Running Gradle build...
-call ./gradlew.bat assembleRelease
+REM Create necessary directories
+if not exist "app\src\main\assets" mkdir "app\src\main\assets"
+if not exist "app\src\main\res\mipmap-hdpi" mkdir "app\src\main\res\mipmap-hdpi"
 
-if errorlevel 1 (
+REM Check if assets exist
+if not exist "app\src\main\assets\index.html" (
+    echo ⚠️  Warning: index.html not found in assets
+)
+
+REM Build APK
+echo 🔨 Compiling APK...
+set JAVA_HOME=%JAVA_HOME%
+gradlew.bat assembleRelease
+
+if %ERRORLEVEL% equ 0 (
     echo.
-    echo ERROR: Build failed!
-    pause
-    exit /b 1
+    echo ✅ Build complete!
+    if exist "app\build\outputs\apk\release\app-release.apk" (
+        echo 📦 APK location: app\build\outputs\apk\release\app-release.apk
+        for %%A in ("app\build\outputs\apk\release\app-release.apk") do echo 📊 APK size: %%~zA bytes
+    )
+) else (
+    echo.
+    echo ❌ Build failed! Check the error messages above.
 )
 
 echo.
-echo ============================================
-echo BUILD SUCCESSFUL!
-echo ============================================
-echo APK Location:
-echo   app\build\outputs\apk\release\app-release.apk
-echo.
-echo To install on device:
-echo   adb install app\build\outputs\apk\release\app-release.apk
-echo.
-pause
+echo 🚀 To install on device:
+echo    adb install app\build\outputs\apk\release\app-release.apk
